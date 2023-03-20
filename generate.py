@@ -1,4 +1,5 @@
 import argparse
+import logging
 import cv2
 import math
 import matplotlib.pyplot as plt
@@ -19,6 +20,8 @@ from utils.preprocess import get_transform
 cudnn.benchmark = False
     
 def generate_disparity_label(test_left_img, test_right_img, model, outdir, max_disp=-1, testres=1):
+    logger = logging.getLogger(__name__)
+
     processed = get_transform()
     model.eval()
     disp_maps = []
@@ -46,7 +49,7 @@ def generate_disparity_label(test_left_img, test_right_img, model, outdir, max_d
         model.module.disp_reg16 = disparityregression(model.module.maxdisp,16).cuda()
         model.module.disp_reg32 = disparityregression(model.module.maxdisp,32).cuda()
         model.module.disp_reg64 = disparityregression(model.module.maxdisp,64).cuda()
-        print(model.module.maxdisp)
+        logger.debug("Maximum disparity of model is set to %d" % model.module.maxdisp)
         
         # resize
         imgL_o = cv2.resize(imgL_o,None,fx=testres,fy=testres,interpolation=cv2.INTER_CUBIC)
@@ -76,7 +79,8 @@ def generate_disparity_label(test_left_img, test_right_img, model, outdir, max_d
             start_time = time.time()
             pred_disp,entropy = model(imgL,imgR)
             torch.cuda.synchronize()
-            ttime = (time.time() - start_time); print('time = %.2f' % (ttime*1000) )
+            ttime = (time.time() - start_time)
+            logger.debug('time = %.2f' % (ttime*1000) )
         pred_disp = torch.squeeze(pred_disp).data.cpu().numpy()
 
         top_pad   = max_h-imgL_o.shape[0]
@@ -125,8 +129,8 @@ def preprocess(left_datapath, right_datapath, loadmodel, clean=1.0, level=1):
         pretrained_dict['state_dict'] =  {k:v for k,v in pretrained_dict['state_dict'].items() if 'disp' not in k}
         model.load_state_dict(pretrained_dict['state_dict'],strict=False)
     else:
-        print('run with random init')
-    print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
+        logger.debug('run with random init')
+    logger.debug('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
     
     return test_left_img, test_right_img, model
 
