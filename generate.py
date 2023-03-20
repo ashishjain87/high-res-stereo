@@ -26,7 +26,7 @@ def generate_disparity_label(test_left_img, test_right_img, model, outdir, max_d
     model.eval()
     disp_maps = []
     for inx in range(len(test_left_img)):
-        #print(test_left_img[inx])
+        logger.info('Processing %s/%s' % (inx, len(test_left_img)))
         imgL_o = (skimage.io.imread(test_left_img[inx]).astype('float32'))[:,:,:3]
         imgR_o = (skimage.io.imread(test_right_img[inx]).astype('float32'))[:,:,:3]
         imgsize = imgL_o.shape[:2]
@@ -105,7 +105,8 @@ def generate_disparity_label(test_left_img, test_right_img, model, outdir, max_d
         # generating colormap
         #plt.imshow(pred_disp/pred_disp[~invalid].max()*255, cmap='plasma')
         #plt.savefig('color_disparity', dpi=800)
-
+        
+        logger.info('Saving disparity map %s.npy at %s' % (idxname, outdir))
         np.save('%s/%s.npy'% (outdir, idxname),(pred_disp))
         # cv2.imwrite('%s/%s.png'% (outdir, idxname),pred_disp/pred_disp[~invalid].max()*255)
             
@@ -114,12 +115,15 @@ def generate_disparity_label(test_left_img, test_right_img, model, outdir, max_d
     return disp_maps
 
 def preprocess(left_datapath, right_datapath, loadmodel, clean=1.0, level=1):
-    # dataloader
-    # from dataloader import listfiles as DA
+    logger = logging.getLogger(__name__)
+    # setting data path
+    logger.info('Processing left image data path %s' % (left_datapath))
     test_left_img = [os.path.join(left_datapath, file) for file in os.listdir(left_datapath)]
+    logger.info('Processing right image data path %s' % (right_datapath))
     test_right_img = [os.path.join(right_datapath, file) for file in os.listdir(right_datapath)]
 
     # construct model
+    logger.info('Loading model')
     model = hsm(128, clean, level)
     model = nn.DataParallel(model, device_ids=[0])
     model.cuda()
